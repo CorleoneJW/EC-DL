@@ -17,8 +17,8 @@ We present a computer-aided diagnosis (CAD) model for colorectal lesion classifi
 ### Hardware
 **Here are the recommended hardware conditions:**
 <p>
-  <img src="https://img.shields.io/badge/GPU-RTX_3090-green" />
-  <img src="https://img.shields.io/badge/CPU-Intel(R)_Xeon(R)_Gold_6133-green" />
+  <img src="https://img.shields.io/badge/GPU-RTX_3090-red" />
+  <img src="https://img.shields.io/badge/CPU-Intel(R)_Xeon(R)_Gold_6133-red" />
 </p>
 
 ### Software

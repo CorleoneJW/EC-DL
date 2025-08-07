@@ -45,6 +45,8 @@ $ conda env create -f environment.yml -n myenv
 ```
 Prepare the data before running code.<br>
 
+You could acquire the **checkpoints** from [Figshare](https://figshare.com/articles/software/EC-DL/29851883) or [Google Drive](https://drive.google.com/drive/folders/1ZsbS8Tj_uWAcub4oYDNttHpREtLA1LgK?usp=drive_link).
+
 **Typical install time on a normal desktop computer: above 15 minutes.**
 
 ### Pretraining Stage

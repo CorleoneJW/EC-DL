@@ -24,7 +24,7 @@ from optim_factory import create_optimizer
 
 from einops import rearrange
 from datasets import build_pretraining_dataset, DataAugmentationForMAE
-from engine_for_pretraining import train_one_epoch, train_one_epoch_feature_alignment, train_one_epoch_feature_alignment_pl
+from engine_for_pretraining import train_one_epoch, train_one_epoch_feature_alignment, train_one_epoch_feature_alignment_pl, train_one_epoch_pl
 from utils import NativeScalerWithGradNormCount as NativeScaler
 import utils
 import modeling_pretrain
@@ -242,29 +242,29 @@ def main(args):
         log_writer = None
     
     # generate the certain transformed sample image and mask
-    with open(f'../data_pretrain/sample.jpg', 'rb') as f:
-        img = Image.open(f)
-        img.convert('RGB')
+    # with open(f'../data_pretrain/sample.jpg', 'rb') as f:
+    #     img = Image.open(f)
+    #     img.convert('RGB')
 
-    transforms = DataAugmentationForMAE(args)
-    img, bool_masked_pos = transforms(img)
-    bool_masked_pos = torch.from_numpy(bool_masked_pos)
+    # transforms = DataAugmentationForMAE(args)
+    # img, bool_masked_pos = transforms(img)
+    # bool_masked_pos = torch.from_numpy(bool_masked_pos)
 
-    # set the step of log writer for tensorboard
-    if global_rank == 0 and args.output_dir is not None:
-        log_writer.set_step(args.start_epoch)
+    # # set the step of log writer for tensorboard
+    # if global_rank == 0 and args.output_dir is not None:
+    #     log_writer.set_step(args.start_epoch)
 
-        with torch.no_grad():
-            img = img[None, :]
-            bool_masked_pos = bool_masked_pos[None, :]
-            img = img.to(device, non_blocking=True)
-            bool_masked_pos = bool_masked_pos.to(device, non_blocking=True).flatten(1).to(torch.bool)
+    #     with torch.no_grad():
+    #         img = img[None, :]
+    #         bool_masked_pos = bool_masked_pos[None, :]
+    #         img = img.to(device, non_blocking=True)
+    #         bool_masked_pos = bool_masked_pos.to(device, non_blocking=True).flatten(1).to(torch.bool)
 
-            #save original img
-            mean = torch.as_tensor(IMAGENET_DEFAULT_MEAN).to(device)[None, :, None, None]
-            std = torch.as_tensor(IMAGENET_DEFAULT_STD).to(device)[None, :, None, None]
-            ori_img = img * std + mean  # in [0, 1]
-            log_writer.writer.add_image('ori_img', ori_img[0, :])
+    #         #save original img
+    #         mean = torch.as_tensor(IMAGENET_DEFAULT_MEAN).to(device)[None, :, None, None]
+    #         std = torch.as_tensor(IMAGENET_DEFAULT_STD).to(device)[None, :, None, None]
+    #         ori_img = img * std + mean  # in [0, 1]
+    #         log_writer.writer.add_image('ori_img', ori_img[0, :])
 
     print(f"Start training for {args.epochs} epochs")
     print("distributed mode:", args.distributed)
@@ -273,7 +273,7 @@ def main(args):
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             data_loader_train.sampler.set_epoch(epoch)
-        train_stats = train_one_epoch_feature_alignment_pl(
+        train_stats = train_one_epoch_pl(
             model, data_loader_train,
             optimizer, device, epoch, loss_scaler,
             args.clip_grad, log_writer=log_writer,
@@ -290,29 +290,29 @@ def main(args):
 
         if global_rank == 0 and args.output_dir is not None:
             # using sample image to test the model ability of reconstructing image 
-            with torch.no_grad():
-                outputs = model(img, bool_masked_pos)
+            # with torch.no_grad():
+            #     outputs = model(img, bool_masked_pos)
 
-                img_squeeze = rearrange(ori_img, 'b c (h p1) (w p2) -> b (h w) (p1 p2) c', p1=patch_size[0], p2=patch_size[0])
-                img_norm = (img_squeeze - img_squeeze.mean(dim=-2, keepdim=True)) / (img_squeeze.var(dim=-2, unbiased=True, keepdim=True).sqrt() + 1e-6)
-                img_patch = rearrange(img_norm, 'b n p c -> b n (p c)')
-                output_tensor, *_ = outputs
-                img_patch[bool_masked_pos] = output_tensor
+            #     img_squeeze = rearrange(ori_img, 'b c (h p1) (w p2) -> b (h w) (p1 p2) c', p1=patch_size[0], p2=patch_size[0])
+            #     img_norm = (img_squeeze - img_squeeze.mean(dim=-2, keepdim=True)) / (img_squeeze.var(dim=-2, unbiased=True, keepdim=True).sqrt() + 1e-6)
+            #     img_patch = rearrange(img_norm, 'b n p c -> b n (p c)')
+            #     output_tensor, *_ = outputs
+            #     img_patch[bool_masked_pos] = output_tensor
 
-                #make mask
-                mask = torch.ones_like(img_patch)
-                mask[bool_masked_pos] = 0
-                mask = rearrange(mask, 'b n (p c) -> b n p c', c=3)
-                mask = rearrange(mask, 'b (h w) (p1 p2) c -> b c (h p1) (w p2)', p1=patch_size[0], p2=patch_size[1], h=14, w=14)
+            #     #make mask
+            #     mask = torch.ones_like(img_patch)
+            #     mask[bool_masked_pos] = 0
+            #     mask = rearrange(mask, 'b n (p c) -> b n p c', c=3)
+            #     mask = rearrange(mask, 'b (h w) (p1 p2) c -> b c (h p1) (w p2)', p1=patch_size[0], p2=patch_size[1], h=14, w=14)
 
-                #save reconstruction img
-                rec_img = rearrange(img_patch, 'b n (p c) -> b n p c', c=3)
-                # Notice: To visualize the reconstruction image, we add the predict and the original mean and var of each patch. Issue #40
-                rec_img = rec_img * (img_squeeze.var(dim=-2, unbiased=True, keepdim=True).sqrt() + 1e-6) + img_squeeze.mean(dim=-2, keepdim=True)
-                rec_img = rearrange(rec_img, 'b (h w) (p1 p2) c -> b c (h p1) (w p2)', p1=patch_size[0], p2=patch_size[1], h=14, w=14)
-                rec_img_first = rec_img[0, :].clip(0,0.996)
+            #     #save reconstruction img
+            #     rec_img = rearrange(img_patch, 'b n (p c) -> b n p c', c=3)
+            #     # Notice: To visualize the reconstruction image, we add the predict and the original mean and var of each patch. Issue #40
+            #     rec_img = rec_img * (img_squeeze.var(dim=-2, unbiased=True, keepdim=True).sqrt() + 1e-6) + img_squeeze.mean(dim=-2, keepdim=True)
+            #     rec_img = rearrange(rec_img, 'b (h w) (p1 p2) c -> b c (h p1) (w p2)', p1=patch_size[0], p2=patch_size[1], h=14, w=14)
+            #     rec_img_first = rec_img[0, :].clip(0,0.996)
 
-                log_writer.writer.add_image('rec_img', rec_img_first, epoch)
+            #     log_writer.writer.add_image('rec_img', rec_img_first, epoch)
 
                 #save random mask img
                 # img_mask = rec_img * mask

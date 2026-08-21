@@ -1,3 +1,5 @@
+
+
 # EC-DL
 Official code for Development of deep learning-based narrow-band imaging endocytoscopic classification for predicting colorectal lesions from a retrospective study (Nature Communications).
 
@@ -42,6 +44,7 @@ $ git clone https://github.com/CorleoneJW/EC-DL.git
 Install dependencies.<br>
 ```
 $ conda env create -f environment.yml -n myenv
+$ conda activate myenv
 ```
 Prepare the data before running code.<br>
 
